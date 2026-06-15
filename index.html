@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>마켓 CG 대시보드</title>
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --bg-grad-a:#F0F2F5; --bg-grad-b:#E1E5EE;
+    --shape-1:#E2E8F0; --shape-2:#CBD5E1;
+    --header:#334155; --body-card:rgba(255,255,255,0.9);
+    --blue:#1E40AF; --red:#DC2626; --ink:#1A202C; --ink-soft:#64748B; --line:#E2E8F0;
+  }
+  *{box-sizing:border-box} html,body{margin:0;padding:0}
+  body{
+    font-family:"Pretendard","Pretendard Variable",-apple-system,system-ui,sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(1200px 600px at 110% -10%, #FFFFFF 0%, rgba(255,255,255,0) 60%),
+      linear-gradient(135deg, var(--bg-grad-a) 0%, var(--bg-grad-b) 100%);
+    min-height:100vh;
+  }
+  body::before, body::after{content:"";position:fixed;z-index:0;pointer-events:none}
+  body::before{width:140vw;height:48vh;left:-20vw;top:18vh;
+    background:linear-gradient(135deg,var(--shape-1),rgba(226,232,240,0));transform:rotate(-12deg);opacity:.7}
+  body::after{width:120vw;height:38vh;left:-10vw;top:52vh;
+    background:linear-gradient(135deg,var(--shape-2),rgba(203,213,225,0));transform:rotate(-12deg);opacity:.45}
+  .wrap{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:28px 22px 60px}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand .dot{width:11px;height:11px;border-radius:3px;background:var(--blue);box-shadow:0 0 0 4px rgba(30,64,175,.12)}
+  .brand h1{font-size:19px;font-weight:800;letter-spacing:-.02em;margin:0}
+  .brand .sub{font-size:12px;color:var(--ink-soft);margin-top:2px;font-weight:600}
+  .status{font-size:12px;font-weight:700;color:var(--ink-soft);background:var(--body-card);
+    border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+  .status.live{color:#15803D} .status.demo{color:#B45309}
+
+  .tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+  .tab{font-family:inherit;font-size:14px;font-weight:700;border:1px solid var(--line);
+    background:rgba(255,255,255,.7);color:var(--ink-soft);padding:10px 18px;border-radius:11px;
+    cursor:pointer;transition:.15s;letter-spacing:-.01em}
+  .tab:hover{color:var(--ink);border-color:var(--shape-2)}
+  .tab.active{background:var(--header);color:#fff;border-color:var(--header);box-shadow:0 6px 18px rgba(51,65,85,.18)}
+
+  .panel{display:none;animation:fade .25s ease} .panel.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .search{flex:1;min-width:240px;display:flex;align-items:center;gap:10px;background:var(--body-card);
+    border:1px solid var(--line);border-radius:12px;padding:0 14px;box-shadow:0 2px 10px rgba(51,65,85,.05)}
+  .search input{flex:1;border:0;outline:0;background:transparent;font-family:inherit;font-size:15px;
+    padding:13px 0;color:var(--ink);font-weight:600}
+  .search input::placeholder{color:#94A3B8;font-weight:500}
+  .search .ico{color:#94A3B8;font-size:15px}
+  .btn{font-family:inherit;font-weight:700;font-size:14px;border:0;border-radius:11px;padding:12px 18px;
+    cursor:pointer;transition:.15s;white-space:nowrap}
+  .btn.primary{background:var(--blue);color:#fff;box-shadow:0 6px 16px rgba(30,64,175,.22)}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.ghost{background:rgba(255,255,255,.8);color:var(--ink);border:1px solid var(--line)}
+  .btn.ghost:hover{border-color:var(--shape-2)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+  .chip{font-size:13px;font-weight:700;background:rgba(255,255,255,.75);border:1px solid var(--line);
+    color:var(--ink-soft);padding:7px 13px;border-radius:999px;cursor:pointer;transition:.15s}
+  .chip:hover{color:var(--blue);border-color:#C7D2FE}
+  .chip.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+  .card{background:var(--body-card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:0 8px 30px rgba(51,65,85,.07);overflow:hidden}
+  .card .chead{background:var(--header);color:#fff;padding:14px 18px;font-weight:800;font-size:15px;
+    display:flex;justify-content:space-between;align-items:center;letter-spacing:-.01em}
+  .card .chead .count{font-size:12px;font-weight:700;opacity:.85;background:rgba(255,255,255,.16);
+    padding:4px 10px;border-radius:999px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  thead th{text-align:left;font-size:12px;font-weight:700;color:var(--ink-soft);
+    padding:11px 18px;border-bottom:1px solid var(--line);background:rgba(248,250,252,.6)}
+  tbody td{padding:12px 18px;border-bottom:1px solid #EEF2F6;color:var(--ink);vertical-align:top}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:hover{background:rgba(241,245,249,.55)}
+  .code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;color:var(--blue);font-size:13px}
+  .tag{display:inline-block;font-size:11px;font-weight:800;padding:3px 9px;border-radius:6px;
+    background:#EEF2FF;color:var(--blue);letter-spacing:-.01em}
+  .muted{color:var(--ink-soft)}
+  .empty{padding:40px 18px;text-align:center;color:var(--ink-soft);font-weight:600}
+
+  .cg-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:18px 0 12px;flex-wrap:wrap}
+  .cg-toolbar .ttl{font-size:14px;font-weight:800;color:var(--ink-soft)}
+  .cg-stage{display:flex;justify-content:center;overflow:auto;padding:4px}
+
+  #cgFrame{width:1280px;height:720px;position:relative;flex:0 0 auto;
+    background:linear-gradient(135deg,#F0F2F5 0%,#E1E5EE 100%);
+    overflow:hidden;border-radius:10px;box-shadow:0 14px 50px rgba(51,65,85,.18);
+    font-family:"Pretendard","Pretendard Variable",sans-serif}
+  #cgFrame .band1,#cgFrame .band2{position:absolute;left:-10%;width:130%;height:42%}
+  #cgFrame .band1{top:14%;transform:rotate(-12deg);background:linear-gradient(135deg,#E2E8F0,rgba(226,232,240,0));opacity:.85}
+  #cgFrame .band2{top:50%;transform:rotate(-12deg);background:linear-gradient(135deg,#CBD5E1,rgba(203,213,225,0));opacity:.55}
+  #cgFrame .cg-inner{position:absolute;inset:0;padding:48px 56px 0;display:flex;flex-direction:column}
+  #cgFrame .cg-title{display:flex;align-items:center;gap:16px;margin-bottom:24px}
+  #cgFrame .cg-title .kicker{font-size:18px;font-weight:800;color:#1E40AF;letter-spacing:.04em}
+  #cgFrame .cg-title h2{margin:0;font-size:46px;font-weight:800;color:#1A202C;letter-spacing:-.02em;line-height:1.05}
+  #cgFrame .cg-title .pill{margin-left:auto;background:#334155;color:#fff;font-size:18px;font-weight:800;padding:9px 18px;border-radius:10px}
+  #cgFrame .cg-card{background:rgba(255,255,255,.92);border-radius:18px;
+    box-shadow:0 12px 40px rgba(51,65,85,.14);overflow:hidden;flex:1;margin-bottom:96px}
+  #cgFrame .cg-card .hd{background:#334155;color:#fff;display:grid;grid-template-columns:1.1fr 2fr 0.8fr;
+    font-size:17px;font-weight:800;padding:14px 28px}
+  #cgFrame .cg-card .row{display:grid;grid-template-columns:1.1fr 2fr 0.8fr;align-items:center;
+    padding:0 28px;height:62px;border-bottom:1px solid #EDF1F6}
+  #cgFrame .cg-card .row:nth-child(even){background:rgba(241,245,249,.5)}
+  #cgFrame .cg-card .row:last-child{border-bottom:0}
+  #cgFrame .cg-card .nm{font-size:24px;font-weight:800;color:#1A202C;letter-spacing:-.02em}
+  #cgFrame .cg-card .ft{font-size:19px;font-weight:600;color:#334155;line-height:1.25}
+  #cgFrame .cg-card .cd{font-size:20px;font-weight:800;color:#1E40AF;font-family:ui-monospace,Menlo,monospace}
+  #cgFrame .cg-card .cd.flag::after{content:" ‼️";font-family:inherit}
+  #cgFrame .cg-foot{position:absolute;left:0;right:0;bottom:0;height:74px}
+  #cgFrame .cg-foot .ticker{position:absolute;inset:0;background:linear-gradient(90deg,#E8ECF3,#DEE3EC)}
+  #cgFrame .cg-foot .src{position:absolute;right:40px;bottom:88px;font-size:15px;font-weight:600;color:#64748B}
+  #cgFrame .cg-foot .logo{position:absolute;left:40px;top:0;bottom:0;display:flex;align-items:center;font-size:16px;font-weight:800;color:#334155;letter-spacing:.02em}
+  #cgFrame .cg-empty{flex:1;display:flex;align-items:center;justify-content:center;color:#94A3B8;
+    font-size:22px;font-weight:700;margin-bottom:96px;background:rgba(255,255,255,.5);border-radius:18px}
+
+  .hint{font-size:12.5px;color:var(--ink-soft);margin-top:10px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand">
+      <span class="dot"></span>
+      <div>
+        <h1>마켓 CG 대시보드</h1>
+        <div class="sub">CG DB · K-Stock · 테마 검색 → 방송 CG</div>
+      </div>
+    </div>
+    <div id="status" class="status demo">불러오는 중…</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="theme">테마 검색 → CG</button>
+    <button class="tab" data-tab="kstock">K-Stock DB</button>
+    <button class="tab" data-tab="cgdb">CG DB</button>
+  </div>
+
+  <section id="panel-theme" class="panel active">
+    <div class="controls">
+      <div class="search"><span class="ico">🔍</span>
+        <input id="themeInput" type="text" placeholder="테마 입력 (예: 방산, 원전, AI반도체)…" /></div>
+      <button class="btn primary" id="themeGo">CG 만들기</button>
+    </div>
+    <div class="chips" id="themeChips"></div>
+    <div class="cg-toolbar">
+      <span class="ttl" id="cgTitleLabel">테마를 고르거나 입력해보세요</span>
+      <button class="btn ghost" id="savePng" disabled>🖼️ PNG로 저장</button>
+    </div>
+    <div class="cg-stage">
+      <div id="cgFrame">
+        <div class="band1"></div><div class="band2"></div>
+        <div class="cg-inner">
+          <div class="cg-title">
+            <span class="kicker">THEME</span>
+            <h2 id="cgTheme">테마 종목</h2>
+            <span class="pill" id="cgPill">0 종목</span>
+          </div>
+          <div class="cg-card" id="cgCard"><div class="cg-empty">검색하면 여기에 CG가 그려져요</div></div>
+        </div>
+        <div class="cg-foot">
+          <div class="ticker"></div>
+          <div class="logo">MONEY PLUS</div>
+          <div class="src" id="cgSrc"></div>
+        </div>
+      </div>
+    </div>
+    <div class="hint">※ 한 화면에 종목이 많으면 잘릴 수 있어 상위 8개까지 CG에 담아요. 전체는 K-Stock 탭에서 확인하세요.</div>
+  </section>
+
+  <section id="panel-kstock" class="panel">
+    <div class="controls">
+      <div class="search"><span class="ico">🔍</span>
+        <input id="kstockInput" type="text" placeholder="종목명·테마·종목코드 검색…" /></div>
+    </div>
+    <div class="card">
+      <div class="chead">K-Stock DB <span class="count" id="kstockCount">0</span></div>
+      <div id="kstockTable"></div>
+    </div>
+  </section>
+
+  <section id="panel-cgdb" class="panel">
+    <div class="controls">
+      <div class="search"><span class="ico">🔍</span>
+        <input id="cgdbInput" type="text" placeholder="제목·키워드·유형·날짜 검색…" /></div>
+    </div>
+    <div class="card">
+      <div class="chead">CG DB <span class="count" id="cgdbCount">0</span></div>
+      <div id="cgdbTable"></div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+let KSTOCK=[], CGDB=[], curTheme="", SRC_LABEL="";
+
+/* ---- 데이터 로드 (서버 /api) ---- */
+async function loadData(){
+  let live=0,total=0;
+  try{
+    const k=await (await fetch("/api/kstock")).json();
+    KSTOCK=k.rows||[]; SRC_LABEL=k.label||SRC_LABEL; total++; if(k.source==="live")live++;
+    const c=await (await fetch("/api/cgdb")).json();
+    CGDB=c.rows||[]; SRC_LABEL=c.label||SRC_LABEL; total++; if(c.source==="live")live++;
+  }catch(e){ console.error(e); setStatus("warn"); return; }
+  setStatus(live>0?"live":"demo");
+}
+function setStatus(mode){
+  const el=document.getElementById("status");
+  if(mode==="live"){el.className="status live";el.textContent="실데이터 연결됨";}
+  else if(mode==="warn"){el.className="status demo";el.textContent="서버 응답 오류";}
+  else{el.className="status demo";el.textContent="데모 데이터 (시트 비공개?)";}
+}
+
+/* ---- 유틸 ---- */
+function col(obj,...names){
+  for(const n of names){ if(obj[n]!==undefined&&obj[n]!=="")return obj[n]; }
+  for(const k of Object.keys(obj)){ for(const n of names){ if(k.includes(n))return obj[k]; } }
+  return "";
+}
+function esc(s){return (s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function isCodeFlagged(code){return /‼️|\?/.test(code);}
+
+/* ---- 탭 ---- */
+document.querySelectorAll(".tab").forEach(t=>{
+  t.addEventListener("click",()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    document.getElementById("panel-"+t.dataset.tab).classList.add("active");
+  });
+});
+
+/* ---- 테마 칩 ---- */
+function renderChips(){
+  const themes=[...new Set(KSTOCK.map(r=>col(r,"테마")).filter(Boolean))];
+  const box=document.getElementById("themeChips"); box.innerHTML="";
+  themes.slice(0,18).forEach(th=>{
+    const b=document.createElement("button");
+    b.className="chip"; b.textContent=th;
+    b.onclick=()=>{document.getElementById("themeInput").value=th;buildCG(th);highlightChip(th);};
+    box.appendChild(b);
+  });
+}
+function highlightChip(th){
+  document.querySelectorAll("#themeChips .chip").forEach(c=>c.classList.toggle("on",c.textContent===th));
+}
+
+/* ---- 테마 → CG ---- */
+function buildCG(theme){
+  theme=(theme||"").trim(); curTheme=theme;
+  const matches=KSTOCK.filter(r=>theme!==""&&col(r,"테마").includes(theme));
+  const card=document.getElementById("cgCard");
+  const pill=document.getElementById("cgPill");
+  const head=document.getElementById("cgTheme");
+  const lbl=document.getElementById("cgTitleLabel");
+  const saveBtn=document.getElementById("savePng");
+  document.getElementById("cgSrc").textContent=SRC_LABEL||"";
+  head.textContent=theme||"테마 종목";
+
+  if(!theme){lbl.textContent="테마를 고르거나 입력해보세요";return;}
+  if(!matches.length){
+    pill.textContent="0 종목";
+    card.innerHTML='<div class="cg-empty">"'+esc(theme)+'" 에 해당하는 종목이 없어요</div>';
+    lbl.textContent='"'+theme+'" — 결과 없음'; saveBtn.disabled=true; return;
+  }
+  const shown=matches.slice(0,8);
+  pill.textContent=matches.length+" 종목";
+  let html='<div class="hd"><div>종목명</div><div>특징</div><div>코드</div></div>';
+  shown.forEach(r=>{
+    const code=col(r,"종목코드","코드");
+    html+='<div class="row">'+
+      '<div class="nm">'+esc(col(r,"종목명"))+'</div>'+
+      '<div class="ft">'+esc(col(r,"특징"))+'</div>'+
+      '<div class="cd'+(isCodeFlagged(code)?' flag':'')+'">'+esc(code.replace(/‼️/g,''))+'</div>'+
+    '</div>';
+  });
+  card.innerHTML=html;
+  lbl.textContent='"'+theme+'" — '+matches.length+'종목'+(matches.length>8?' (상위 8개 표시)':'');
+  saveBtn.disabled=false;
+}
+
+document.getElementById("savePng").addEventListener("click",async()=>{
+  const frame=document.getElementById("cgFrame");
+  const btn=document.getElementById("savePng");
+  btn.disabled=true; btn.textContent="저장 중…";
+  try{
+    const canvas=await html2canvas(frame,{scale:1.5,backgroundColor:null,useCORS:true,logging:false});
+    const a=document.createElement("a");
+    a.download=(curTheme||"theme")+"_CG.png";
+    a.href=canvas.toDataURL("image/png"); a.click();
+  }catch(e){console.error(e);alert("저장 실패: 콘솔을 확인해주세요.");}
+  btn.disabled=false; btn.textContent="🖼️ PNG로 저장";
+});
+document.getElementById("themeGo").addEventListener("click",()=>{
+  const v=document.getElementById("themeInput").value; buildCG(v); highlightChip(v.trim());
+});
+document.getElementById("themeInput").addEventListener("keydown",e=>{
+  if(e.key==="Enter"){buildCG(e.target.value);highlightChip(e.target.value.trim());}
+});
+
+/* ---- K-Stock 테이블 ---- */
+function renderKstock(q){
+  q=(q||"").toLowerCase().trim();
+  const rows=KSTOCK.filter(r=>{
+    if(!q)return true;
+    return [col(r,"종목명"),col(r,"테마"),col(r,"특징"),col(r,"종목코드","코드")].join(" ").toLowerCase().includes(q);
+  });
+  document.getElementById("kstockCount").textContent=rows.length;
+  const box=document.getElementById("kstockTable");
+  if(!rows.length){box.innerHTML='<div class="empty">검색 결과가 없어요</div>';return;}
+  let h='<table><thead><tr><th>종목명</th><th>테마</th><th>특징</th><th>코드</th></tr></thead><tbody>';
+  rows.forEach(r=>{
+    h+='<tr><td><b>'+esc(col(r,"종목명"))+'</b></td>'+
+       '<td><span class="tag">'+esc(col(r,"테마"))+'</span></td>'+
+       '<td class="muted">'+esc(col(r,"특징"))+'</td>'+
+       '<td class="code">'+esc(col(r,"종목코드","코드"))+'</td></tr>';
+  });
+  box.innerHTML=h+'</tbody></table>';
+}
+document.getElementById("kstockInput").addEventListener("input",e=>renderKstock(e.target.value));
+
+/* ---- CG DB 테이블 ---- */
+function renderCgdb(q){
+  q=(q||"").toLowerCase().trim();
+  const rows=CGDB.filter(r=>{
+    if(!q)return true;
+    return [col(r,"날짜"),col(r,"CG제목","제목"),col(r,"키워드"),col(r,"유형")].join(" ").toLowerCase().includes(q);
+  });
+  document.getElementById("cgdbCount").textContent=rows.length;
+  const box=document.getElementById("cgdbTable");
+  if(!rows.length){box.innerHTML='<div class="empty">검색 결과가 없어요</div>';return;}
+  let h='<table><thead><tr><th>날짜</th><th>CG 제목</th><th>키워드</th><th>유형</th></tr></thead><tbody>';
+  rows.forEach(r=>{
+    h+='<tr><td class="muted">'+esc(col(r,"날짜"))+'</td>'+
+       '<td><b>'+esc(col(r,"CG제목","제목"))+'</b></td>'+
+       '<td class="muted">'+esc(col(r,"키워드"))+'</td>'+
+       '<td><span class="tag">'+esc(col(r,"유형"))+'</span></td></tr>';
+  });
+  box.innerHTML=h+'</tbody></table>';
+}
+document.getElementById("cgdbInput").addEventListener("input",e=>renderCgdb(e.target.value));
+
+/* ---- 부팅 ---- */
+(async function init(){
+  await loadData();
+  renderChips(); renderKstock(""); renderCgdb("");
+})();
+</script>
+</body>
+</html>
