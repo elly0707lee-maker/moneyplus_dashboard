@@ -123,6 +123,31 @@
   #cgFrame .cg-empty{flex:1;display:flex;align-items:center;justify-content:center;color:#94A3B8;
     font-size:22px;font-weight:700;margin-bottom:96px;background:rgba(255,255,255,.5);border-radius:18px}
 
+  /* CG 종목 격자 (종목명+코드만, 균형 분할) */
+  #cgFrame .cg-grid{display:grid;height:100%;padding:18px 26px}
+  #cgFrame .cg-col{display:grid;padding:0 26px;border-right:1px solid #E2E8F0}
+  #cgFrame .cg-col:last-child{border-right:0}
+  #cgFrame .cg-cell{display:flex;align-items:center;border-bottom:1px solid #EDF1F6;min-height:0}
+  #cgFrame .cg-cell:last-child{border-bottom:0}
+  #cgFrame .cg-cnm{font-size:31px;font-weight:800;color:#1A202C;letter-spacing:-.02em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center}
+  #cgFrame .cg-cnm::before{content:"";flex:0 0 auto;width:9px;height:9px;border-radius:2px;
+    background:#1E40AF;margin-right:15px}
+  #cgFrame .cg-ccd{font-size:23px;font-weight:800;color:#1E40AF;flex:0 0 auto;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  #cgFrame .cg-ccd.flag::after{content:" ‼️";font-family:inherit}
+
+  /* CG 종목 선택 칩 */
+  .cg-picker{margin:0 0 16px}
+  .cg-picker .pk-lbl{font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:9px}
+  .cg-picker .pk-wrap{display:flex;flex-wrap:wrap;gap:8px}
+  .cg-picker .pk{font-family:inherit;font-size:13px;font-weight:700;border:1px solid var(--line);
+    background:rgba(255,255,255,.85);color:var(--ink);padding:7px 13px;border-radius:999px;
+    cursor:pointer;transition:.12s;user-select:none}
+  .cg-picker .pk:hover{border-color:var(--shape-2)}
+  .cg-picker .pk.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .cg-picker .pk.off{opacity:.5;text-decoration:line-through;color:var(--ink-soft)}
+
   .hint{font-size:12.5px;color:var(--ink-soft);margin-top:10px;line-height:1.5}
 
   /* ---- K-Stock 종목 카드 ---- */
@@ -175,14 +200,13 @@
       <span class="ttl" id="cgTitleLabel">테마를 고르거나 입력해보세요</span>
       <button class="btn ghost" id="savePng" disabled>🖼️ PNG로 저장</button>
     </div>
+    <div class="cg-picker" id="cgPicker"></div>
     <div class="cg-stage">
       <div id="cgFrame">
         <div class="band1"></div><div class="band2"></div>
         <div class="cg-inner">
           <div class="cg-title">
-            <span class="kicker">THEME</span>
-            <h2 id="cgTheme">테마 종목</h2>
-            <span class="pill" id="cgPill">0 종목</span>
+            <h2 id="cgTheme">관련주</h2>
           </div>
           <div class="cg-card" id="cgCard"><div class="cg-empty">검색하면 여기에 CG가 그려져요</div></div>
         </div>
@@ -193,7 +217,7 @@
         </div>
       </div>
     </div>
-    <div class="hint">※ 한 화면에 종목이 많으면 잘릴 수 있어 상위 8개까지 CG에 담아요. 전체는 K-Stock 탭에서 확인하세요.</div>
+    <div class="hint">※ 종목이 많으면 상위 12개까지 CG에 담아요 (4·4·4 균형 배치). 전체는 K-Stock 탭에서 확인하세요.</div>
   </section>
 
   <section id="panel-kstock" class="panel">
@@ -222,6 +246,7 @@
 
 <script>
 let KSTOCK=[], CGDB=[], curTheme="", SRC_LABEL="";
+let cgMatches=[], cgSelected=new Set();
 
 /* ---- 데이터 로드 (서버 /api) ---- */
 async function loadData(){
@@ -277,36 +302,80 @@ function highlightChip(th){
 
 /* ---- 테마 → CG ---- */
 function buildCG(theme){
-  theme=(theme||"").trim(); curTheme=theme;
-  const matches=KSTOCK.filter(r=>theme!==""&&col(r,"테마").includes(theme));
+  theme=(theme||"").trim();
   const card=document.getElementById("cgCard");
-  const pill=document.getElementById("cgPill");
   const head=document.getElementById("cgTheme");
   const lbl=document.getElementById("cgTitleLabel");
   const saveBtn=document.getElementById("savePng");
+  const picker=document.getElementById("cgPicker");
   document.getElementById("cgSrc").textContent=SRC_LABEL||"";
-  head.textContent=theme||"테마 종목";
+  head.textContent=theme?theme+" 관련주":"관련주";
 
-  if(!theme){lbl.textContent="테마를 고르거나 입력해보세요";return;}
-  if(!matches.length){
-    pill.textContent="0 종목";
+  if(!theme){
+    lbl.textContent="테마를 고르거나 입력해보세요";
+    picker.innerHTML=""; saveBtn.disabled=true;
+    card.innerHTML='<div class="cg-empty">검색하면 여기에 CG가 그려져요</div>';
+    return;
+  }
+  cgMatches=KSTOCK.filter(r=>col(r,"테마").includes(theme));
+  if(!cgMatches.length){
+    picker.innerHTML="";
     card.innerHTML='<div class="cg-empty">"'+esc(theme)+'" 에 해당하는 종목이 없어요</div>';
     lbl.textContent='"'+theme+'" — 결과 없음'; saveBtn.disabled=true; return;
   }
-  const shown=matches.slice(0,8);
-  pill.textContent=matches.length+" 종목";
-  let html='<div class="hd"><div>종목명</div><div>특징</div><div>코드</div></div>';
-  shown.forEach(r=>{
-    const code=col(r,"종목코드","코드");
-    html+='<div class="row">'+
-      '<div class="nm">'+esc(col(r,"종목명"))+'</div>'+
-      '<div class="ft">'+esc(col(r,"특징"))+'</div>'+
-      '<div class="cd'+(isCodeFlagged(code)?' flag':'')+'">'+esc(code.replace(/‼️/g,''))+'</div>'+
-    '</div>';
-  });
-  card.innerHTML=html;
-  lbl.textContent='"'+theme+'" — '+matches.length+'종목'+(matches.length>8?' (상위 8개 표시)':'');
+  // 테마가 바뀌었을 때만 전체 선택으로 초기화 (같은 테마면 선택 유지)
+  if(theme!==curTheme){
+    curTheme=theme;
+    cgSelected=new Set(cgMatches.map(r=>col(r,"종목명")));
+  }
+  renderCGPicker();
+  renderCGCard();
   saveBtn.disabled=false;
+}
+
+/* 종목 선택 칩 — 눌러서 빼고/넣기 */
+function renderCGPicker(){
+  const picker=document.getElementById("cgPicker");
+  let h='<div class="pk-lbl">📋 CG에 넣을 종목 — 눌러서 빼고/넣기 (위에서부터 최대 12개 표시)</div><div class="pk-wrap">';
+  cgMatches.forEach(r=>{
+    const nm=col(r,"종목명");
+    h+='<button class="pk '+(cgSelected.has(nm)?'on':'off')+'" data-nm="'+esc(nm)+'">'+esc(nm)+'</button>';
+  });
+  picker.innerHTML=h+'</div>';
+  picker.querySelectorAll(".pk").forEach(b=>{
+    b.addEventListener("click",()=>{
+      const nm=b.dataset.nm;
+      if(cgSelected.has(nm)){cgSelected.delete(nm);b.classList.remove("on");b.classList.add("off");}
+      else{cgSelected.add(nm);b.classList.add("on");b.classList.remove("off");}
+      renderCGCard();
+    });
+  });
+}
+
+/* 선택된 종목으로 CG 격자 그리기 (종목명만, 최대 12, 균형 분할) */
+function renderCGCard(){
+  const card=document.getElementById("cgCard");
+  const lbl=document.getElementById("cgTitleLabel");
+  const picked=cgMatches.filter(r=>cgSelected.has(col(r,"종목명")));
+  const shown=picked.slice(0,12);
+  const n=shown.length;
+  if(!n){
+    card.innerHTML='<div class="cg-empty">종목을 하나 이상 선택하세요</div>';
+    lbl.textContent='"'+curTheme+'" — 0개 선택'; return;
+  }
+  const cols=Math.min(3,Math.ceil(n/4));   // 1~4→1열, 5~8→2열, 9~12→3열
+  const rows=Math.ceil(n/cols);            // 균형 분할
+  let html='<div class="cg-grid" style="grid-template-columns:repeat('+cols+',1fr)">';
+  for(let c=0;c<cols;c++){
+    const colItems=shown.slice(c*rows,c*rows+rows);
+    html+='<div class="cg-col" style="grid-template-rows:repeat('+rows+',1fr)">';
+    colItems.forEach(r=>{
+      html+='<div class="cg-cell"><span class="cg-cnm">'+esc(col(r,"종목명"))+'</span></div>';
+    });
+    html+='</div>';
+  }
+  card.innerHTML=html+'</div>';
+  lbl.textContent='"'+curTheme+'" — '+picked.length+'개 선택'+(picked.length>12?' (상위 12개만 CG 표시)':'');
 }
 
 document.getElementById("savePng").addEventListener("click",async()=>{
