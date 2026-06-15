@@ -124,6 +124,24 @@
     font-size:22px;font-weight:700;margin-bottom:96px;background:rgba(255,255,255,.5);border-radius:18px}
 
   .hint{font-size:12.5px;color:var(--ink-soft);margin-top:10px;line-height:1.5}
+
+  /* ---- K-Stock 종목 카드 ---- */
+  .kcards{display:flex;flex-direction:column;gap:14px;padding:14px}
+  .kcard{background:#fff;border:1px solid var(--line);border-left:4px solid var(--blue);
+    border-radius:14px;box-shadow:0 6px 22px rgba(51,65,85,.07);overflow:hidden}
+  .kcard-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:14px 18px;border-bottom:1px solid var(--line);background:rgba(248,250,252,.6)}
+  .kcard-head .kname{font-size:18px;font-weight:800;color:var(--ink);letter-spacing:-.02em}
+  .kcard-head .kcode{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;font-weight:800;
+    color:var(--blue);background:#EEF2FF;border:1px solid #E0E7FF;padding:4px 11px;border-radius:8px}
+  .kcard-head .kcode.flag::after{content:" ‼️";font-family:inherit}
+  .kcard-body{padding:4px 18px 12px}
+  .kitem{padding:13px 0;border-bottom:1px dashed #E2E8F0}
+  .kitem:last-child{border-bottom:0}
+  .kbadge{display:inline-block;font-size:12px;font-weight:800;color:#fff;background:var(--header);
+    padding:5px 11px;border-radius:7px;letter-spacing:-.01em;margin-bottom:8px}
+  .kfeat{font-size:14px;font-weight:600;color:var(--ink-soft);line-height:1.55}
+  .kfeat.none{color:#B0BAC9;font-style:italic}
 </style>
 </head>
 <body>
@@ -310,24 +328,42 @@ document.getElementById("themeInput").addEventListener("keydown",e=>{
   if(e.key==="Enter"){buildCG(e.target.value);highlightChip(e.target.value.trim());}
 });
 
-/* ---- K-Stock 테이블 ---- */
+/* ---- K-Stock 종목 카드 ---- */
 function renderKstock(q){
   q=(q||"").toLowerCase().trim();
-  const rows=KSTOCK.filter(r=>{
+  // 1) 검색어에 걸리는 행을 찾고
+  const matched=KSTOCK.filter(r=>{
     if(!q)return true;
     return [col(r,"종목명"),col(r,"테마"),col(r,"특징"),col(r,"종목코드","코드")].join(" ").toLowerCase().includes(q);
   });
-  document.getElementById("kstockCount").textContent=rows.length;
+  // 2) 걸린 종목명만 추려서 (등장 순서 유지)
+  const names=[];
+  matched.forEach(r=>{const n=col(r,"종목명"); if(n&&!names.includes(n))names.push(n);});
+  document.getElementById("kstockCount").textContent=names.length;
   const box=document.getElementById("kstockTable");
-  if(!rows.length){box.innerHTML='<div class="empty">검색 결과가 없어요</div>';return;}
-  let h='<table><thead><tr><th>종목명</th><th>테마</th><th>특징</th><th>코드</th></tr></thead><tbody>';
-  rows.forEach(r=>{
-    h+='<tr><td><b>'+esc(col(r,"종목명"))+'</b></td>'+
-       '<td><span class="tag">'+esc(col(r,"테마"))+'</span></td>'+
-       '<td class="muted">'+esc(col(r,"특징"))+'</td>'+
-       '<td class="code">'+esc(col(r,"종목코드","코드"))+'</td></tr>';
+  if(!names.length){box.innerHTML='<div class="empty">검색 결과가 없어요</div>';return;}
+
+  // 3) 종목별로 그 종목의 "모든 테마"를 묶어서 카드로
+  let h='<div class="kcards">';
+  names.forEach(name=>{
+    const rows=KSTOCK.filter(r=>col(r,"종목명")===name);
+    const code=col(rows[0],"종목코드","코드");
+    h+='<div class="kcard">'+
+       '<div class="kcard-head">'+
+         '<span class="kname">📌 '+esc(name)+'</span>'+
+         '<span class="kcode'+(isCodeFlagged(code)?' flag':'')+'">'+esc(code.replace(/‼️/g,''))+'</span>'+
+       '</div><div class="kcard-body">';
+    rows.forEach(r=>{
+      const theme=col(r,"테마"), feat=col(r,"특징");
+      h+='<div class="kitem">'+
+         '<span class="kbadge">'+esc(theme)+'</span>'+
+         (feat ? '<div class="kfeat">'+esc(feat)+'</div>'
+               : '<div class="kfeat none">설명 없음</div>')+
+       '</div>';
+    });
+    h+='</div></div>';
   });
-  box.innerHTML=h+'</tbody></table>';
+  box.innerHTML=h+'</div>';
 }
 document.getElementById("kstockInput").addEventListener("input",e=>renderKstock(e.target.value));
 
